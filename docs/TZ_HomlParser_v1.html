@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ТЗ HomlParser v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground:  #F2F3F7;
+    --surface: #FBFBFD;
+    --sunken:  #EAEBF2;
+    --ink:     #15161F;
+    --muted:   #5A5E72;
+    --faint:   #868BA0;
+    --line:    #D7D9E3;
+    --line-soft: #E4E6EE;
+    --accent:  #3A3DA8;
+    --accent-soft: #E6E7F6;
+    --ok:      #156B5A;
+    --ok-soft: #DFEDE8;
+    --open:    #8A5A0B;
+    --open-soft: #F4EBD8;
+    --stop:    #8E3B3B;
+    --stop-soft: #F2E3E3;
+
+    --f-display: "Spectral", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #12131A;
+      --surface: #1A1C25;
+      --sunken:  #0D0E14;
+      --ink:     #E8E9F0;
+      --muted:   #9BA0B4;
+      --faint:   #767B90;
+      --line:    #2C2F3C;
+      --line-soft: #23252F;
+      --accent:  #9397F5;
+      --accent-soft: #23253B;
+      --ok:      #58C3A6;
+      --ok-soft: #16302A;
+      --open:    #DCA846;
+      --open-soft: #322714;
+      --stop:    #DE9191;
+      --stop-soft: #331D1D;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:  #12131A;
+    --surface: #1A1C25;
+    --sunken:  #0D0E14;
+    --ink:     #E8E9F0;
+    --muted:   #9BA0B4;
+    --faint:   #767B90;
+    --line:    #2C2F3C;
+    --line-soft: #23252F;
+    --accent:  #9397F5;
+    --accent-soft: #23253B;
+    --ok:      #58C3A6;
+    --ok-soft: #16302A;
+    --open:    #DCA846;
+    --open-soft: #322714;
+    --stop:    #DE9191;
+    --stop-soft: #331D1D;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: 72px 0 34px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .eyebrow {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+
+  h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(2.3rem, 5.2vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 1.1rem;
+    color: var(--muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .meta-row b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- layout ---------- */
+
+  .doc {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding-top: 48px;
+  }
+
+  @media (min-width: 1000px) {
+    .doc { grid-template-columns: 206px minmax(0, 1fr); gap: 56px; }
+    nav.toc {
+      position: sticky;
+      top: 32px;
+      align-self: start;
+      max-height: calc(100vh - 64px);
+      overflow-y: auto;
+    }
+  }
+
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    counter-reset: toc;
+  }
+  nav.toc a {
+    display: flex;
+    gap: 9px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.35;
+    padding: 5px 8px 5px 0;
+    border-radius: 3px;
+  }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  nav.toc a .n {
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    padding-top: 2px;
+    min-width: 14px;
+  }
+
+  main { min-width: 0; }
+
+  section { padding-bottom: 56px; }
+  section + section { border-top: 1px solid var(--line-soft); padding-top: 44px; }
+
+  h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 1.72rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+  }
+  h2 .num {
+    font-family: var(--f-mono);
+    font-weight: 400;
+    font-size: 0.86rem;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+
+  h3 {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.005em;
+    margin: 32px 0 8px;
+  }
+
+  .lede { color: var(--muted); max-width: 66ch; margin: 0 0 24px; }
+
+  p { max-width: 68ch; }
+  main p { margin: 0 0 14px; }
+
+  ul.plain, ol.plain { max-width: 68ch; padding-left: 20px; margin: 0 0 16px; }
+  ul.plain li, ol.plain li { margin-bottom: 7px; }
+
+  code {
+    font-family: var(--f-mono);
+    font-size: 0.875em;
+    background: var(--sunken);
+    border: 1px solid var(--line-soft);
+    padding: 0.08em 0.34em;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* ---------- code samples ---------- */
+
+  pre {
+    font-family: var(--f-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    background: var(--sunken);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    margin: 0 0 18px;
+    overflow-x: auto;
+    border-radius: 2px;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
+  .k { color: var(--accent); }
+  .s { color: var(--ok); }
+  .c { color: var(--faint); font-style: italic; }
+  .q { color: var(--open); font-weight: 500; }
+  .x { color: var(--stop); }
+
+  pre.err { background: var(--stop-soft); border-color: var(--stop); color: var(--ink); }
+
+  /* ---------- status chips ---------- */
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 2px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .chip--ok    { color: var(--ok);     border-color: var(--ok);     background: var(--ok-soft); }
+  .chip--open  { color: var(--open);   border-color: var(--open);   background: var(--open-soft); }
+  .chip--assume{ color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .chip--stop  { color: var(--stop);   border-color: var(--stop);   background: var(--stop-soft); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 26px;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    margin-bottom: 28px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .legend div { display: flex; gap: 9px; align-items: center; }
+
+  /* ---------- rule list ---------- */
+
+  .rules { display: flex; flex-direction: column; gap: 0; margin: 0 0 8px; }
+  .rule {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 18px;
+    padding: 15px 0;
+    border-top: 1px solid var(--line-soft);
+    align-items: start;
+  }
+  .rule:last-child { border-bottom: 1px solid var(--line-soft); }
+  .rule > .tag { padding-top: 2px; }
+  .rule .body { min-width: 0; }
+  .rule .body > :last-child { margin-bottom: 0; }
+  .rule h4 {
+    font-family: var(--f-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin: 0 0 4px;
+  }
+  .rule p { font-size: 0.925rem; color: var(--muted); margin: 0 0 8px; max-width: 64ch; }
+  .rule pre { margin: 10px 0 4px; font-size: 12.5px; }
+
+  @media (max-width: 620px) {
+    .rule { grid-template-columns: 1fr; gap: 8px; }
+  }
+
+  /* ---------- tables ---------- */
+
+  .t-wrap { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--line); border-radius: 2px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--surface); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 400;
+    background: var(--sunken);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.mono, td code { font-family: var(--f-mono); }
+  td.mono { font-family: var(--f-mono); font-size: 12.5px; white-space: nowrap; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- pipeline ---------- */
+
+  .pipe {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0 0 24px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+  .pipe-step {
+    display: grid;
+    grid-template-columns: 136px minmax(0, 1fr);
+    gap: 20px;
+    padding: 14px 18px;
+  }
+  .pipe-step + .pipe-step { border-top: 1px solid var(--line-soft); }
+  .pipe-step .name {
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--accent);
+    padding-top: 2px;
+  }
+  .pipe-step .what { font-size: 0.925rem; color: var(--muted); }
+  .pipe-step .what b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 620px) {
+    .pipe-step { grid-template-columns: 1fr; gap: 4px; }
+  }
+
+  /* ---------- stages ---------- */
+
+  .stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .stage {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 20px;
+    padding: 22px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .stage:last-child { border-bottom: 1px solid var(--line-soft); }
+  .stage .sn {
+    font-family: var(--f-mono);
+    font-size: 1.45rem;
+    color: var(--accent);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .stage p { font-size: 0.93rem; color: var(--muted); margin: 0 0 10px; }
+  .dod {
+    font-size: 0.88rem;
+    border-left: 2px solid var(--line);
+    padding: 2px 0 2px 14px;
+    color: var(--muted);
+    max-width: 64ch;
+  }
+  .dod b {
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 400;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  /* ---------- checklist ---------- */
+
+  .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .checks li {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 0.94rem;
+  }
+  .checks li::before {
+    content: "";
+    width: 13px; height: 13px;
+    margin-top: 5px;
+    border: 1.5px solid var(--faint);
+    border-radius: 2px;
+  }
+
+  .nope { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .nope li {
+    font-size: 0.88rem;
+    font-family: var(--f-mono);
+    padding: 5px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 2px;
+    color: var(--muted);
+    background: var(--surface);
+  }
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--open);
+    padding: 16px 20px;
+    margin: 0 0 22px;
+    border-radius: 2px;
+  }
+  .callout p { margin: 0; font-size: 0.94rem; color: var(--muted); }
+  .callout p + p { margin-top: 10px; }
+  .callout strong { color: var(--ink); }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Техническое задание</span>
+      <span>HOML · язык конфигурации</span>
+      <span>Ревизия 1 · 2026-10-04</span>
+    </div>
+    <h1>ТЗ HomlParser v1</h1>
+    <p class="standfirst">Что должно быть сделано, в каком порядке и по каким признакам считать сделанным. Решения по языку зафиксированы здесь; код пишете вы.</p>
+    <div class="meta-row">
+      <span>Репозиторий: <b>~/Projects/HomlParser</b></span>
+      <span>Язык: <b>C++23</b></span>
+      <span>Сборка: <b>CMake + Ninja</b></span>
+      <span>Тулчейн: <b>GCC 16.2</b></span>
+    </div>
+  </header>
+
+  <div class="doc">
+
+    <nav class="toc" aria-label="Содержание">
+      <ol>
+        <li><a href="#s1"><span class="n">1</span><span>Назначение и приоритет</span></a></li>
+        <li><a href="#s2"><span class="n">2</span><span>Правила языка</span></a></li>
+        <li><a href="#s3"><span class="n">3</span><span>Открытые вопросы</span></a></li>
+        <li><a href="#s4"><span class="n">4</span><span>Архитектура</span></a></li>
+        <li><a href="#s5"><span class="n">5</span><span>Структура репозитория</span></a></li>
+        <li><a href="#s6"><span class="n">6</span><span>Этапы работ</span></a></li>
+        <li><a href="#s7"><span class="n">7</span><span>Диагностика</span></a></li>
+        <li><a href="#s8"><span class="n">8</span><span>Тесты и устойчивость</span></a></li>
+        <li><a href="#s9"><span class="n">9</span><span>Приёмка v1</span></a></li>
+        <li><a href="#s10"><span class="n">10</span><span>Вне скоупа</span></a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="s1">
+        <h2><span class="num">01</span> Назначение и приоритет</h2>
+        <p class="lede">HOML — текстовый формат для двух задач одновременно. Они тянут дизайн в разные стороны, поэтому приоритет задан явно.</p>
+
+        <div class="rules">
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Главное</span></div>
+            <div class="body">
+              <h4>Конфигурация, которую пишет и читает человек</h4>
+              <p>Отсюда вытекают комментарии, многострочные строки, маркер <code>?</code> и требование к качеству сообщений об ошибках. Самодокументируемость важнее минимализма: <code>config.example.homl</code> должен заменять раздел README со списком полей.</p>
+            </div>
+          </div>
+          <div class="rule">
+            <div class="tag"><span class="chip chip--open">Вторично</span></div>
+            <div class="body">
+              <h4>Формат данных, возвращаемых сервисом</h4>
+              <p>Отсюда — массивы объектов, анонимный корень, устойчивость к недоверенному вводу и лимит глубины. Производительность в v1 не оптимизируется, но архитектура не должна её закрывать.</p>
+            </div>
+          </div>
+        </div>
+
+        <p>При конфликте двух задач выигрывает первая. Пример действующего решения: маркер <code>?</code> оставлен в языке, хотя в wire-формате он бесполезен и дублируется на каждом элементе массива.</p>
+      </section>
+
+      <section id="s2">
+        <h2><span class="num">02</span> Правила языка</h2>
+        <p class="lede">Это вход для <code>docs/SPEC.md</code>, а не замена ему. Спеку писать вам — в том числе потому, что EBNF-грамматика есть проверка: правило, которое не записывается без оговорки «а тут зависит от…», означает неустранённую неоднозначность.</p>
+
+        <div class="legend">
+          <div><span class="chip chip--ok">Решено</span> ваше решение, зафиксировано</div>
+          <div><span class="chip chip--assume">Допущение</span> моя рекомендация, можно переопределить</div>
+        </div>
+
+        <div class="rules">
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Поле — <code>ключ: значение</code>, разделителей между полями нет</h4>
+              <p>Ни запятых, ни точек с запятой. Ключи без кавычек.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Голые слова как значения запрещены</h4>
+              <p>Кавычки у строк обязательны. Именно этот запрет и позволяет жить без разделителей: <code>IDENT</code> в позиции значения однозначно означает, что значения не было, — хватает одного токена lookahead.</p>
+              <pre><code><span class="k">tags</span>: [<span class="s">"network"</span>, <span class="s">"auth"</span>, <span class="s">"db"</span>]   <span class="c">// так</span>
+<span class="k">tags</span>: [<span class="x">network, auth, db</span>]         <span class="c">// ошибка</span></code></pre>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Блок — <code>имя { … }</code>, вложенность любая, inline разрешён</h4>
+              <pre><code><span class="k">tdlib</span> { <span class="k">version</span>: <span class="s">"1.8.0"</span> }</code></pre>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Типы: строка, многострочная строка, число, <code>true</code>/<code>false</code>/<code>null</code>, массив</h4>
+              <p>Многострочные — в обратных кавычках. Массивы <code>[a, b, c]</code> допускают смешанные типы.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Комментарии <code>//</code> и блочные</h4>
+              <p>Лексер обязан разбирать строковые литералы раньше, чем искать <code>//</code>, иначе любой URL внутри строки развалит файл. Это первый тест лексера.</p>
+              <pre><code><span class="k">origins</span>: [<span class="s">"http://myapp.com"</span>]  <span class="c">// не комментарий внутри строки</span></code></pre>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Маркер <code>?</code> — часть объявления поля, не значения</h4>
+              <p>Означает: поле можно не указывать, пустота здесь ожидаема. В AST — флаг у поля; парсер его только сохраняет, читают форматтер и будущий валидатор.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Пропущенное значение → <code>null</code>, и только при <code>?</code></h4>
+              <p>Для поля без <code>?</code> отсутствие значения — ошибка. Это единственное, что защищает от «забыл дописать значение»: пустота легальна лишь там, где автор сам заявил <code>?</code>.</p>
+              <pre><code><span class="k">middle_name</span><span class="q">?</span>:          <span class="c">// null</span>
+<span class="k">host</span>:                 <span class="c">// ошибка: ожидалось значение</span></code></pre>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--ok">Решено</span></div>
+            <div class="body">
+              <h4>Значение начинается на строке своего <code>:</code></h4>
+              <p>Проверяется сравнением номеров строк у токенов — отдельного токена перевода строки в потоке нет. Правило действует для всех полей, однородно. <code>[</code>, <code>{</code> и открывающая обратная кавычка остаются на строке ключа, их содержимое многострочное.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--assume">Допущение</span></div>
+            <div class="body">
+              <h4>Объект — полноценное значение</h4>
+              <p>То есть <code>key: { … }</code> легален, <code>имя { … }</code> — синтаксический сахар над ним (один и тот же узел AST), корень документа — неявный объект. Без этого решения <code>users: [{…}]</code> и анонимный корень <code>{ status: 200 }</code> вне грамматики, а значит формат не выражает ответ сервиса.</p>
+              <p><strong>Если переопределите</strong> — HOML становится языком конфигов и только; массивы объектов и анонимный корень выпадают, второй сценарий из §1 закрывается.</p>
+              <p>Побочное следствие принятого варианта: набор видов значений совпадает с JSON — скаляры, массив, объект, — поэтому печать дерева в JSON тотальна по данным (теряются комментарии и маркер <code>?</code>). Синтаксического включения при этом нет ни в одну сторону: JSON-файл не разбирается как HOML из-за кавычек у ключей, запятых между членами и запрета точки в ключе. HOML — самостоятельный формат, а не JSON с сахаром.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--assume">Допущение</span></div>
+            <div class="body">
+              <h4>Ключ: <code>[A-Za-z_][A-Za-z0-9_-]*</code></h4>
+              <p>Точка запрещена — иначе путь в API (<code>server.tls.enabled</code>) становится неоднозначным. Ключ, совпадающий с литералом (<code>true</code>, <code>null</code>), парсер принимает: лексер выдаст токен литерала, и это надо предусмотреть заранее.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--assume">Допущение</span></div>
+            <div class="body">
+              <h4>Числа: <code>int64</code> и <code>double</code> хранятся раздельно</h4>
+              <p>Единый <code>double</code> молча потеряет точность на 17-значных идентификаторах из ответов сервиса. Формы: целое со знаком, дробное, экспонента. <code>0x</code>, <code>1_000</code>, <code>+1</code>, <code>.5</code> — не входят в v1.</p>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--assume">Допущение</span></div>
+            <div class="body">
+              <h4>Многострочные строки: отступ срезается по закрывающей кавычке</h4>
+              <p>Первый перевод строки после открывающей кавычки отбрасывается; отступ закрывающей задаёт базовый и вычитается из всех строк. Так делают C# 11 и Swift. Без этого правила значение зависит от красоты отступов в файле.</p>
+              <pre><code><span class="k">banner</span>: <span class="s">`
+    Welcome
+      to HOML
+`</span>   <span class="c">// → "Welcome\n  to HOML"</span></code></pre>
+            </div>
+          </div>
+
+          <div class="rule">
+            <div class="tag"><span class="chip chip--assume">Допущение</span></div>
+            <div class="body">
+              <h4>Прочие умолчания</h4>
+              <p>Запятая в массиве обязательна, висячая разрешена. Блочные комментарии вложенные (счётчик глубины; незакрытый указывает на своё начало, не на EOF). Дубликат ключа в одном объекте — ошибка, не перезапись. Порядок ключей сохраняется. <code>\r\n</code> нормализуется в <code>\n</code> при чтении. Файл — UTF-8, BOM допускается и отбрасывается. <code>{</code> блока разрешён на следующей строке.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="s3">
+        <h2><span class="num">03</span> Открытые вопросы</h2>
+        <p class="lede">Закрыть до начала работы над лексером: каждый из них меняет либо набор токенов, либо форму AST.</p>
+
+        <div class="t-wrap">
+          <table>
+            <thead>
+              <tr><th>Вопрос</th><th>Варианты</th><th>Рекомендация</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Набор escape-последовательностей в <code>"…"</code></td>
+                <td class="mono">\n \t \" \\ \uXXXX</td>
+                <td>Этот набор, без <code>\xNN</code>. Сырой перевод строки внутри <code>"…"</code> — ошибка, и лексер обязан оборвать её на конце строки, а не глотать файл до конца</td>
+              </tr>
+              <tr>
+                <td>Обратные кавычки — raw или с escape</td>
+                <td>raw / с escape</td>
+                <td>raw: внутри нет ничего, кроме текста. Цена — обратную кавычку внутрь вставить нечем; если нужна, потребуется ограничитель вида <code>```</code></td>
+              </tr>
+              <tr>
+                <td><code>?</code> на блоках: <code>tls? { … }</code></td>
+                <td>да / нет</td>
+                <td>Да, иначе блоки неравноправны значениям. В массивах <code>?</code> запретить явно</td>
+              </tr>
+              <tr>
+                <td>Лексема маркера</td>
+                <td>часть <code>IDENT</code> / отдельный токен</td>
+                <td>Отдельный токен <code>?</code>, смежность с ключом проверяется по позициям. Иначе валидным станет либо <code>a?b?c</code>, либо <code>secret ? : 1</code></td>
+              </tr>
+              <tr>
+                <td>Два поля в одной строке</td>
+                <td>разрешено / одно поле на строку</td>
+                <td>Разрешить: запрет ничего не защищает. Форматтер при выводе раскладывает по строкам</td>
+              </tr>
+              <tr>
+                <td>Канонический вывод пустого поля</td>
+                <td class="mono">key?: / key?: null</td>
+                <td>Писать <code>null</code> явно. Пустая форма — удобство ввода, вывод однозначен</td>
+              </tr>
+              <tr>
+                <td>Различимы ли «поля нет» и «поле = null» в API</td>
+                <td>да / нет</td>
+                <td>Для отчества — нет, для <code>retries?: null</code> («явно отключено») может быть да. Решение влияет на сигнатуру доступа, принять до §4</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="s4">
+        <h2><span class="num">04</span> Архитектура</h2>
+        <p class="lede">Пять слоёв с односторонней зависимостью: каждый знает только о предыдущем. Это условие того, что лексер можно тестировать без парсера, а парсер переписать без переписывания API.</p>
+
+        <div class="pipe">
+          <div class="pipe-step">
+            <div class="name">Source</div>
+            <div class="what">Буфер файла, имя для диагностики, нормализация <code>\r\n</code>, отбрасывание BOM. <b>Владеет текстом</b> и живёт дольше всего, что на него ссылается.</div>
+          </div>
+          <div class="pipe-step">
+            <div class="name">Lexer</div>
+            <div class="what">Поток токенов с позицией. Пробелы, переводы строк и комментарии пропускаются молча — токена перевода строки нет. <b>О грамматике не знает ничего.</b></div>
+          </div>
+          <div class="pipe-step">
+            <div class="name">Parser</div>
+            <div class="what">Рекурсивный спуск, <b>LL(1)</b>: после <code>IDENT</code> один токен lookahead решает, поле это или блок. Ошибку не выбрасывает — записывает в диагностику и восстанавливается.</div>
+          </div>
+          <div class="pipe-step">
+            <div class="name">Value / AST</div>
+            <div class="what">Дерево. Скаляры, массив, объект, флаг <code>optional</code> у поля, позиция узла для сообщений уровня валидации. <b>Решите, кто владеет строками</b>: ссылки в буфер быстрее, но связывают время жизни дерева с источником.</div>
+          </div>
+          <div class="pipe-step">
+            <div class="name">API</div>
+            <div class="what">Типизированный доступ по пути (<code>server.tls.enabled</code>), обход, запрос с умолчанием. Поверх — форматтер, печатающий дерево обратно в канонический HOML.</div>
+          </div>
+        </div>
+
+        <h3>Инварианты, которые нельзя нарушать</h3>
+        <ul class="plain">
+          <li>Диагностика — <strong>список</strong>, а не исключение: за один проход собираются все ошибки файла.</li>
+          <li>Восстановление после ошибки: пропускать токены до первого, у которого номер строки больше текущей и за которым идёт <code>:</code> или <code>{</code>, — это начало следующего поля.</li>
+          <li>Позиция хранится как смещение; <code>line:col</code> вычисляется лениво. Так дешевле и так проще будет перейти на UTF-16-колонки, если однажды появится LSP.</li>
+          <li>Лимит глубины вложенности обязателен с первого дня: рекурсивный спуск на файле из десяти тысяч <code>[</code> роняет процесс, а разбор данных из сети — недоверенный ввод.</li>
+        </ul>
+
+        <div class="callout">
+          <p><strong>Грабля, которую вы встретите в первый же час.</strong> Рекурсивный тип значения нельзя объявить напрямую: на момент объявления он неполон. Контейнер последовательности с неполным типом стандарт допускает, ассоциативный — нет. Решений несколько, и выбор определяет, останется ли значение копируемым и сколько аллокаций приходится на узел. Решите это осознанно, а не первым найденным способом.</p>
+        </div>
+      </section>
+
+      <section id="s5">
+        <h2><span class="num">05</span> Структура репозитория</h2>
+        <p class="lede">Текущее состояние — шаблон CLion: пустой <code>main.cpp</code>, шесть строк CMake, никакого git. Целевое — библиотека, тонкий CLI поверх неё и тесты, которые линкуются к библиотеке, а не к исполняемому файлу.</p>
+
+        <div class="t-wrap">
+          <table>
+            <thead><tr><th>Путь</th><th>Содержимое</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">include/homl/</td><td>Публичные заголовки: значение, документ, диагностика, точки входа разбора и печати</td></tr>
+              <tr><td class="mono">src/</td><td>Реализация: source, lexer, parser, value, diagnostics, formatter</td></tr>
+              <tr><td class="mono">tests/</td><td>Юнит-тесты лексера и парсера + прогон корпуса</td></tr>
+              <tr><td class="mono">tests/corpus/valid/</td><td><code>*.homl</code> + ожидаемый канонический дамп дерева</td></tr>
+              <tr><td class="mono">tests/corpus/invalid/</td><td><code>*.homl</code> + ожидаемый текст ошибки с позицией</td></tr>
+              <tr><td class="mono">examples/</td><td><code>config.example.homl</code>, <code>response.example.homl</code> — те самые два сценария из §1</td></tr>
+              <tr><td class="mono">docs/SPEC.md</td><td>Спецификация и EBNF-грамматика</td></tr>
+              <tr><td class="mono">tools/</td><td>CLI: проверка файла и форматирование</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Что исправить в CMake сразу</h3>
+        <ul class="plain">
+          <li><code>cmake_minimum_required(VERSION 4.3)</code> — версия, которую подставил CLion. Для библиотеки нужен диапазон вида <code>3.20…4.4</code>, иначе сборка недоступна всем, у кого CMake старше.</li>
+          <li>Стандарт задан глобальной переменной без требования обязательности — компилятор <strong>молча</strong> откатится на доступный. И без отключения расширений вы собираете <code>gnu++23</code>, а узнаёте об этом на чужой машине. Стандарт и предупреждения задаются на цели, а не глобально.</li>
+          <li>Предупреждения: как минимум полный набор плюс диагностика сужающих преобразований — для лексера это рабочий инструмент, а не формальность.</li>
+          <li>Санитайзеры адресов и неопределённого поведения в отладочной сборке. Для разбора текста это основной способ отладки.</li>
+          <li><code>enable_testing()</code> и CTest. Тестовый фреймворк — doctest или Catch2 через <code>FetchContent</code>; GTest для этой задачи тяжеловат.</li>
+        </ul>
+      </section>
+
+      <section id="s6">
+        <h2><span class="num">06</span> Этапы работ</h2>
+        <p class="lede">Порядок существенный: каждый следующий этап опирается на критерий готовности предыдущего. Нумерация — последовательность, а не список.</p>
+
+        <ol class="stages">
+          <li class="stage">
+            <div class="sn">00</div>
+            <div>
+              <h3>git</h3>
+              <p>До единой строки кода. Проект уже был утрачен целиком: истории не было, корзина пуста, файловая система без снапшотов, локальная история IDE содержит только шаблон. Второй раз эта цена не нужна.</p>
+              <div class="dod"><b>Готово, когда</b> есть первый коммит, <code>.gitignore</code> закрывает каталоги сборки и настройки IDE, и настроен внешний remote.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">01</div>
+            <div>
+              <h3>Спецификация и грамматика</h3>
+              <p><code>docs/SPEC.md</code>: решения из §2, ответы на §3, EBNF. Грамматика здесь — инструмент проверки, а не украшение: место, которое не записывается формально, и есть неоднозначность, за которую вы заплатите в парсере.</p>
+              <div class="dod"><b>Готово, когда</b> каждое правило записано без оговорок «зависит от контекста», а все семь вопросов §3 закрыты.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">02</div>
+            <div>
+              <h3>Корпус тестов</h3>
+              <p>Исполняемая часть спеки, и она пишется раньше кода. Каждый спорный случай из §2 и §3 становится файлом: валидным с ожидаемым деревом или невалидным с ожидаемым текстом ошибки.</p>
+              <div class="dod"><b>Готово, когда</b> оба примера-сценария и все пограничные случаи лежат в корпусе, а запуск тестов падает по существу, а не из-за отсутствия кода.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">03</div>
+            <div>
+              <h3>Каркас сборки</h3>
+              <p>Библиотека, CLI, тесты; предупреждения, санитайзеры, CTest — по §5.</p>
+              <div class="dod"><b>Готово, когда</b> <code>cmake --build</code> и <code>ctest</code> проходят на пустой реализации, а отладочная сборка включает санитайзеры.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">04</div>
+            <div>
+              <h3>Лексер</h3>
+              <p>Токены с позициями. Собственные тесты: URL внутри строки, незакрытая строка, незакрытый блочный комментарий, вложенные комментарии, обратные кавычки с отступами, числовые формы, ключ-литерал.</p>
+              <div class="dod"><b>Готово, когда</b> на каждый файл корпуса выдаётся ожидаемый поток токенов, а каждая лексическая ошибка имеет точную позицию начала.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">05</div>
+            <div>
+              <h3>Парсер и дерево</h3>
+              <p>Рекурсивный спуск по грамматике из этапа 01. Сюда же — правило строки значения, подстановка <code>null</code> при <code>?</code>, лимит глубины, проверка дубликатов ключей.</p>
+              <div class="dod"><b>Готово, когда</b> весь валидный корпус даёт ожидаемые деревья, а невалидный — ошибки в ожидаемых позициях.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">06</div>
+            <div>
+              <h3>Диагностика</h3>
+              <p>Несколько ошибок за проход, восстановление, подсказки по §7. Выделено в отдельный этап намеренно: именно здесь парсер становится пригодным для людей.</p>
+              <div class="dod"><b>Готово, когда</b> файл с тремя независимыми ошибками выдаёт три сообщения за один запуск, а тесты сверяют их текст, а не только факт.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">07</div>
+            <div>
+              <h3>Публичное API</h3>
+              <p>Доступ по пути, типизированное чтение, умолчания, обход. Решение из последней строки §3 здесь становится сигнатурой.</p>
+              <div class="dod"><b>Готово, когда</b> оба примера из <code>examples/</code> читаются прикладным кодом без знания о внутренних типах парсера.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">08</div>
+            <div>
+              <h3>Форматтер</h3>
+              <p>Печать дерева в канонический HOML: один стиль отступов, явный <code>null</code>, сохранённый порядок ключей.</p>
+              <div class="dod"><b>Готово, когда</b> повторное форматирование не меняет результат и разбор напечатанного даёт исходное дерево.</div>
+            </div>
+          </li>
+
+          <li class="stage">
+            <div class="sn">09</div>
+            <div>
+              <h3>Схема и валидатор</h3>
+              <p>Отдельный документ, описывающий форму: обязательность, типы, диапазоны. Здесь <code>?</code> наконец начинает что-то проверять. За пределами v1, но архитектура не должна этому мешать — поэтому флаг <code>optional</code> в дереве сохраняется с этапа 05.</p>
+              <div class="dod"><b>Готово, когда</b> решено, отдельный это файл или аннотации в данных.</div>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="s7">
+        <h2><span class="num">07</span> Диагностика</h2>
+        <p class="lede">Требование, а не пожелание: хороший парсер отличается от плохого именно сообщениями. Большинство хороших сообщений получаются не из грамматики, а из контекста, который парсер и так держит в руках.</p>
+
+        <h3>Обязательный минимум сообщения</h3>
+        <ul class="plain">
+          <li>Файл, строка, колонка — указывают на <strong>причину</strong>, а не на место, где парсер споткнулся.</li>
+          <li>Фрагмент источника с указателем на проблемный токен.</li>
+          <li>Подсказка с готовым выходом, а не только констатация.</li>
+        </ul>
+
+        <h3>Эталонный случай</h3>
+        <p>Отъехавшее значение парсер обнаружит и без специальной проверки: <code>null</code> подставлен, дальше в позиции ключа оказывается строка. Но сообщение по умолчанию укажет на строку 8 и скажет «ожидался ключ» — человек будет искать проблему в кавычках. Решается одним флагом состояния: парсер помнит, что предыдущее поле получило неявный <code>null</code>, и если следующим приходит токен, который <em>мог бы</em> быть значением, выдаёт точное сообщение.</p>
+        <pre class="err"><code>error: значение поля 'secret' должно быть на строке 7, рядом с ':'
+  7 |     secret?:
+  8 |     "abc123"
+      |     ^ эта строка не может быть ключом
+hint: перенесите значение на строку 7 либо удалите её —
+      поле останется пустым (null)</code></pre>
+      </section>
+
+      <section id="s8">
+        <h2><span class="num">08</span> Тесты и устойчивость</h2>
+
+        <h3>Уровни</h3>
+        <ul class="plain">
+          <li><strong>Юнит-тесты лексера</strong> — поток токенов и позиции на пограничных входах.</li>
+          <li><strong>Корпус</strong> — валидные файлы против ожидаемого дампа дерева, невалидные против ожидаемого текста ошибки. Сверять текст, а не только факт ошибки: иначе качество сообщений деградирует незаметно.</li>
+          <li><strong>Round-trip</strong> — печать и повторный разбор дают исходное дерево; повторное форматирование ничего не меняет.</li>
+          <li><strong>Дифференциальный оракул через JSON</strong> — печать разобранного дерева в JSON и сверка с доверенным JSON-парсером. Направление только HOML → JSON, и работает оно потому, что наборы видов значений совпадают, а не из-за родства синтаксисов. Обратно JSON-корпус механически не переписывается: кавычки у ключей, запятые между членами, запрет точки в ключе, другой набор escape-последовательностей. Как источник стресс-кейсов — глубина, числовые края, юникод — он годится, но только через написанный трансформер с отображением невыразимых ключей. Бесплатных тысяч кейсов нет: корпус из этапа 02 пишется руками.</li>
+          <li><strong>Фаззинг</strong> — хотя бы несколько минут на случайных и мутированных входах. Цель не «разобрал правильно», а «не упал и не ушёл в бесконечность».</li>
+        </ul>
+
+        <h3>Устойчивость</h3>
+        <ul class="plain">
+          <li>Отладочная сборка под санитайзерами проходит весь корпус чисто.</li>
+          <li>Глубина вложенности ограничена; превышение — обычная ошибка разбора, а не падение.</li>
+          <li>Обрезанный файл, одиночная кавычка, незакрытая скобка, нулевой байт, неполная UTF-8-последовательность — диагностика, а не неопределённое поведение.</li>
+        </ul>
+      </section>
+
+      <section id="s9">
+        <h2><span class="num">09</span> Приёмка v1</h2>
+        <p class="lede">Проверяется по этому списку целиком. Пункт, который невозможно отметить, — это либо незакрытый вопрос из §3, либо пропущенный критерий готовности из §6.</p>
+
+        <ul class="checks">
+          <li>Оба сценария из §1 выражаются в HOML и разбираются: конфиг с вложенными блоками и ответ сервиса с массивом объектов.</li>
+          <li>Все семь вопросов §3 закрыты в <code>docs/SPEC.md</code>, грамматика записана формально.</li>
+          <li>Поле без <code>?</code> и без значения даёт ошибку; с <code>?</code> — <code>null</code>.</li>
+          <li>Значение, отъехавшее на другую строку, даёт сообщение с указанием на строку ключа и подсказкой.</li>
+          <li>Файл с несколькими независимыми ошибками выдаёт их все за один запуск.</li>
+          <li>Каждая ошибка корпуса совпадает с ожидаемым текстом и позицией.</li>
+          <li>Round-trip устойчив; повторное форматирование — тождество.</li>
+          <li>Корпус проходит под санитайзерами без замечаний.</li>
+          <li>Фаззинг не находит падений и зависаний.</li>
+          <li>Прикладной код читает оба примера через публичное API, не зная о внутренних типах.</li>
+          <li>Сборка проходит на чистой машине без CLion: только CMake, компилятор и CTest.</li>
+        </ul>
+      </section>
+
+      <section id="s10">
+        <h2><span class="num">10</span> Вне скоупа</h2>
+        <p class="lede">Перечислено, чтобы не расползалось. Каждый пункт — отдельное обсуждение после v1; соблазн добавить любой из них возникнет на этапе 05, когда парсер впервые заработает.</p>
+        <ul class="nope">
+          <li>include / import файлов</li>
+          <li>переменные и подстановки</li>
+          <li>арифметика и выражения</li>
+          <li>слияние конфигов</li>
+          <li>схема и валидатор</li>
+          <li>языковой сервер</li>
+          <li>бинарная сериализация</li>
+          <li>потоковый разбор</li>
+          <li>SIMD и оптимизация скорости</li>
+          <li>привязки к другим языкам</li>
+        </ul>
+        <p>Отдельно: производительность в v1 не измеряется и не оптимизируется. Единственное требование к ней — архитектура §4 не должна закрывать путь к оптимизации, когда она понадобится.</p>
+      </section>
+
+      <footer>
+        <span>HOML · ТЗ ревизия 1</span>
+        <span>Решения §2 с пометкой «допущение» подлежат подтверждению</span>
+        <span>2026-10-04</span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>

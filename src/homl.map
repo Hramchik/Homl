@@ -1,0 +1,6 @@
+HOML_0 {
+    global:
+        homl_*;
+    local:
+        *;
+};
